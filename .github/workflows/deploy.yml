@@ -1,0 +1,31 @@
+name: Deploy to AWS
+
+# This tells GitHub to run this script every time you push to the 'main' branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into EC2 and Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ${{ secrets.AWS_USERNAME }}
+          key: ${{ secrets.AWS_KEY }}
+          script: |
+            cd system-metrics-api
+            git pull origin main
+            
+            # Rebuild the Docker image
+            docker build -t system-metric-api .
+            
+            # Stop and remove the old container gracefully (ignores error if it doesn't exist)
+            docker stop metrics-app || true
+            docker rm metrics-app || true
+            
+            # Run the new container with a specific name
+            docker run -d -p 8000:8000 --name metrics-app system-metric-api
